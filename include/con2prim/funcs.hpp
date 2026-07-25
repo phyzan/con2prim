@@ -194,7 +194,8 @@ void output_result(Real& P, Real& rho, Real& lfac, Real& xi, Real& mu_max, Real&
     std::cout << "P = " << P << std::endl;
     std::cout << "rho = " << rho << std::endl;
     std::cout << "lfac = " << lfac << std::endl;
-    std::cout << "xi = " << xi << std::endl;
+    std::cout << "xi = " << xi << " " << (D/mu_out) << std::endl;
+
 }
 
 
