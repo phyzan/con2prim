@@ -1,4 +1,5 @@
 #include "../include/con2prim/funcs.hpp"
+#include "../include/con2prim/orig.hpp"
 #include <cstdlib>
 #include <cstring>
 #include <cstdio>
@@ -50,7 +51,22 @@ int main(int argc, char* argv[]) {
     double gamma = 5. / 3.;
 
 
+    std::cout << "\n--- Original implementation ---" << std::endl;
+    const ctp::RootStatus result = ctp::get_prims_orig(P, rho, lfac, xi, mu_max, mu_out, q, d, r2, rb2, b2, gamma, tol, 100);
+    std::cout << (result == ctp::RootStatus::Success ? "Success: " : "Max iterations reached: ");
+    std::cout << std::setprecision(15);
+    std::cout << "mu_max = " << mu_max << std::endl;
+    std::cout << "mu_out = " << mu_out << std::endl;
+    std::cout << "P = " << P << std::endl;
+    std::cout << "rho = " << rho << std::endl;
+    std::cout << "lfac = " << lfac << std::endl;
+    std::cout << "xi = " << xi << " " << (d/mu_out) << std::endl;
+
+    std::cout << "\n--- NEW IMPLEMENTATION ---" << std::endl;
     ctp::output_result(P, rho, lfac, xi, mu_max, mu_out, q, d, r2, rb2, b2, gamma, tol, 100);
+
+
+
     
 
     return 0;

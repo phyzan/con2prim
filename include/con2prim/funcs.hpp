@@ -3,6 +3,7 @@
 
 
 #include "tools.hpp"
+#include <cmath>
 #include <iomanip>
 #include <iostream>
 
@@ -14,7 +15,7 @@ class KastaunResidual {
 
     public:
 
-        static constexpr Real GAMMA_MAX = 1000.;
+        static constexpr Real GAMMA_MAX = 50.;
 
         KastaunResidual(Real q, Real d, Real r_sq, Real rb_sq, Real b_sq, Real Gam, Real h0 = 1) : D(d), h0(h0), Gam(Gam), r_sq(r_sq), rb_sq(rb_sq), b_sq(b_sq), q(q) {
             // Cap z0_sq to limit the maximum Lorentz factor (W_max ~ W_max).
@@ -177,6 +178,21 @@ RootStatus get_prims(Real& P, Real& rho, Real& lfac, Real& xi, Real& mu_max, Rea
     const Real h_hat = 1.0 + eps + ahat;
     xi = h_hat * lfac * D;
     return result;
+}
+
+
+template<typename Real>
+void prim2con(Real& d, Real& tau, Real& ss, Real& sb2, const Real P, const Real rho, const Real lfac, const Real BB) {
+    Real theta = 1;
+    Real gamma = 5. / 3.;
+    Real h_times_rho = rho + gamma / (gamma - 1) * P;
+    Real z = h_times_rho * lfac * lfac;
+    d = rho * lfac;
+    Real v2 = 1 - 1 / (lfac * lfac);
+    Real SB2 = z*z * v2 * BB * std::cos(theta) * std::cos(theta);
+    tau = z - P + BB/2 * (2*z + BB)/(z*z) * SB2;
+    ss = 1;
+    sb2 = 1;
 }
 
 
