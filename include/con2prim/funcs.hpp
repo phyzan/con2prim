@@ -2,6 +2,7 @@
 #define CON2PRIM_FUNCS_HPP
 
 
+#include "orig.hpp"
 #include "tools.hpp"
 #include <cmath>
 #include <iomanip>
@@ -15,8 +16,6 @@ class KastaunResidual {
 
     public:
 
-        static constexpr Real GAMMA_MAX = 50.;
-
         KastaunResidual(Real q, Real d, Real r_sq, Real rb_sq, Real b_sq, Real Gam, Real h0 = 1) : D(d), h0(h0), Gam(Gam), r_sq(r_sq), rb_sq(rb_sq), b_sq(b_sq), q(q) {
             // Cap z0_sq to limit the maximum Lorentz factor (W_max ~ W_max).
             // Without this cap, extreme r_sq (magnetically dominated regions) leads
@@ -24,7 +23,7 @@ class KastaunResidual {
             // primitives that pass the P > 0 / rho > 0 checks without triggering fixup.
             // The cap must be on z0_sq (not v0_sq) so that W_sq/iW_sq, which use
             // 1 + z0_sq as the capped W^2, remain consistent.
-            z0_sq   = std::min(r_sq / (h0 * h0), GAMMA_MAX * GAMMA_MAX - 1.0);
+            z0_sq   = std::min(r_sq / (h0 * h0), LFAC_CAP * LFAC_CAP - 1.0);
             v0_sq   = z0_sq / (1 + z0_sq);
         }
 
@@ -180,20 +179,6 @@ RootStatus get_prims(Real& P, Real& rho, Real& lfac, Real& xi, Real& mu_max, Rea
     return result;
 }
 
-
-template<typename Real>
-void prim2con(Real& d, Real& tau, Real& ss, Real& sb2, const Real P, const Real rho, const Real lfac, const Real BB) {
-    Real theta = 1;
-    Real gamma = 5. / 3.;
-    Real h_times_rho = rho + gamma / (gamma - 1) * P;
-    Real z = h_times_rho * lfac * lfac;
-    d = rho * lfac;
-    Real v2 = 1 - 1 / (lfac * lfac);
-    Real SB2 = z*z * v2 * BB * std::cos(theta) * std::cos(theta);
-    tau = z - P + BB/2 * (2*z + BB)/(z*z) * SB2;
-    ss = 1;
-    sb2 = 1;
-}
 
 
 template<typename Real>

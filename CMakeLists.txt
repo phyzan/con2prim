@@ -12,5 +12,10 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-add_executable(test src/main.cpp)
-target_include_directories(test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+# Conserved -> primitive, with the fork (funcs.hpp) and/or KHARMA (head.hpp) inverter
+add_executable(con2prim src/main.cpp)
+target_include_directories(con2prim PRIVATE ${CMAKE_SOURCE_DIR}/include)
+
+# Primitive -> conserved -> primitive round trip with both inverters
+add_executable(prim2con src/prim2con.cpp)
+target_include_directories(prim2con PRIVATE ${CMAKE_SOURCE_DIR}/include)
