@@ -7,76 +7,125 @@
 
 namespace ctp{
 
-template<typename T>
-inline T abs(T x){
-    return x < 0 ? -x : x;
-}
+using std::abs;
 
 
-enum class Status {
-    success,
-    max_iter
+enum class RootStatus {
+    Success,
+    MaxIter,
+    NotBracketed
 };
 
+enum class RootEval  {
+    Positive, // f(root) = 0+
+    Negative, // f(root) = 0-
+    Any, // No preference
+};
 
-template<typename T, typename Callable>
-Status bisect(T& out, Callable&& f, const T& a, const T& b, const T& atol, int max_iter){
+template<RootEval RP, typename T, typename Callable>
+RootStatus bisect_illinois(
+    T&          out,
+    Callable&&  f,
+    const T     low,
+    const T     high,
+    const T     ftol,
+    const T     xtol,
+    const int   max_iter)
+{
     // Uses false position method with Illinois algorithm for acceleration.
     /**
-    @param f: a function object which takes a T and returns a T, with a root between a and b
-    @param a: lower bound of root
-    @param b: upper bound of root
-    @param atol: absolute tolerance of f for convergence.
+    @tparam RP: Side of the root to return: f(out) >= 0, f(out) <= 0, or Any
+    @param f: A function takes a T and returns a T, with a root between low and high
+    @param low: Lower bound of root
+    @param high: Upper bound of root
+    @param ftol: Absolute tolerance of f for convergence (0. turns it off)
+    @param xtol: Absolute tolerance of the bracket width for convergence (0. turns it off)
     @param max_iter: maximum number of iterations
-    @note If the atol is too small (e.g. 0.), the function will return success if machine precision causes the brackets to collapse before max_iter is reached.
+    @note With ftol and xtol both 0., the function will return success if machine
+    precision causes the brackets to collapse before max_iter is reached.
 
     */
-    T zm = a;
-    T zp = b;
-    T fm = f(zm);
-    T fp = f(zp);
+    // The ends swap as the iterations go, so they can be in either order:
+    // a is the end kept from earlier iterations, b is the latest iterate
+    T a = low;
+    T b = high;
+    T fa = f(a);
+    T fb = f(b);
+    T z = 0.5*(a+b);
 
-    if (fm * fp > 0){
-        throw std::runtime_error("Root not bracketed");
-    }
-    
-    // If bracket already within tolerances, return midpoint
-    if ((std::abs(zm-zp) < atol) || ((std::abs(fm) + std::abs(fp)) < 2.0*atol)) {
-        out = 0.5*(zm + zp);
-        return Status::success;
-    }
-
-    T z = 0.5*(zm + zp);
-    int iter = 0;
-    for (; iter < max_iter; iter++) {
-        z = (zm*fp - zp*fm)/(fp-fm);  // linear interpolation to point f(z)=0
-        T fz = f(z);
-        if ( (z-zm) * (z-zp) >= 0) {
-            // Check for machine precision (z collapsed to bracket)
-            break;
-        } else if ((std::abs(zm-zp) < atol) || (std::abs(fz) < atol)) {
-            // Check for convergence
-            break;
-        } else if (fz*fp < 0.0) {
-            // assign zm-->zp if root bracketed by [z,zp]
-            zm = zp;
-            fm = fp;
-            zp = z;
-            fp = fz;
+    // The bracket end on the requested side of the root, or z for Any
+    auto side_end = [&]() -> T {
+        if constexpr (RP == RootEval::Positive){
+            return fa > 0 ? a : b;
+        } else if constexpr (RP == RootEval::Negative){
+            return fa > 0 ? b : a;
         } else {
-            // assign zp-->z if root bracketed by [zm,z]
-            // 1/2 comes from "Illinois algorithm" to accelerate convergence
-            fm = 0.5*fm;
-            zp = z;
-            fp = fz;
+            // Round-off can put z just outside
+            return std::min(std::max(z, std::min(a, b)), std::max(a, b));
+        }
+    };
+
+    // Initial checks before entering the main loop
+    if (fa * fb > 0){
+        return RootStatus::NotBracketed;
+    } else if (fa == 0){
+        out = a;
+        return RootStatus::Success;
+    } else if (fb == 0){
+        out = b;
+        return RootStatus::Success;
+    } else if (std::abs(b - a) <= xtol){
+        out = side_end();
+        return RootStatus::Success;
+    }
+
+    // Loop until convergence is met
+    // or brackets collapse to machine precision
+    for (int iter = 0; iter < max_iter; iter++) {
+        z = (a*fb - b*fa)/(fb-fa);  // linear interpolation to point f(z)=0
+        if constexpr (RP != RootEval::Any) {
+            // Round-off put z on the bracket: one end is at the root, but the end on
+            // the requested side may not be. Bisect instead, so that end converges too
+            if ((z-a) * (z-b) >= 0) {
+                z = 0.5*(a + b);
+            }
+        }
+        if ((z-a) * (z-b) >= 0) {
+            // Bracket collapsed to machine precision.
+            out = side_end();
+            return RootStatus::Success;
+        }
+        T fz = f(z);
+
+        // Depending on RP, this branch will be compiled away
+        // so no need to bloat the code with trivial constexpr branches
+        if ((std::abs(fz) <= ftol) &&
+                   (RP == RootEval::Any ||
+                    (RP == RootEval::Positive ? fz >= 0 : fz <= 0))) {
+            // Converged on the requested side of the root
+            out = z;
+            return RootStatus::Success;
+        } else if (fz*fb < 0.0) {
+            // Root bracketed by z and b: b becomes the kept end
+            a = b;
+            fa = fb;
+        } else {
+            // Root bracketed by a and z: a is kept again
+            // Illinois: halve its f to accelerate convergence
+            fa = 0.5*fa;
+        }
+        b = z;
+        fb = fz;
+        // Converged in x. Tested after the update, so the last iteration still counts
+        if (std::abs(b - a) <= xtol){
+            out = side_end();
+            return RootStatus::Success;
         }
     }
-    out = std::max(zm, zp); // For our purposes, we want the upper bracket near the solution. max(zm, zp) is required since the illinois algorithm can swap the brackets.
-    return iter < max_iter ? Status::success : Status::max_iter;
+
+    out = side_end(); // Best guess respecting the requested root position
+    return RootStatus::MaxIter;
 }
-
-
-
 
 
 } // namespace ctp

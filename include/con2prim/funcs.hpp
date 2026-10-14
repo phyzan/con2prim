@@ -129,7 +129,7 @@ class KastaunResidual {
 };
 
 template<typename Real>
-Status get_prims(Real& P, Real& rho, Real& lfac, Real& xi, Real& mu_max, Real& mu_out, const Real q, const Real D, const Real r_sq, const Real rb_sq, const Real b_sq, const Real Gam, const Real tol, int max_iter) {
+RootStatus get_prims(Real& P, Real& rho, Real& lfac, Real& xi, Real& mu_max, Real& mu_out, const Real q, const Real D, const Real r_sq, const Real rb_sq, const Real b_sq, const Real Gam, const Real tol, int max_iter) {
     const Real h0 = 1.;
     KastaunResidual res(q, D, r_sq, rb_sq, b_sq, Gam, h0);
     // Find upper bound for mu using eqn 49
@@ -141,9 +141,9 @@ Status get_prims(Real& P, Real& rho, Real& lfac, Real& xi, Real& mu_max, Real& m
         // Request maximum accuracy for upper bracket (machine precision)
         // as extreme conditions may require that. Usually very few iterations are required anyway,
         // and no EoS calls are needed, so this is not an important bottleneck.
-        bisect(mu_max, [&res](const Real mu){
+        bisect_illinois<RootEval::Positive>(mu_max, [&res](const Real mu){
             return res.bound_obj_fun(mu);
-        }, mu_min, 1.0/h0, 0.0, max_iter);
+        }, mu_min, 1.0/h0, 0.0, 0.0, max_iter);
         
 
         // Per Kastaun et al. Sec IV A: nudge mu_max slightly upward to
@@ -154,16 +154,16 @@ Status get_prims(Real& P, Real& rho, Real& lfac, Real& xi, Real& mu_max, Real& m
     }
     
     Real f_upper = res.obj_fun(mu_max);
-    Status result;
+    RootStatus result;
     if (f_upper <= 0.) {
         // mu_max is at the root up to machine precision (can happen for extreme
         // inputs where ehat < 0 is clamped).  mu_max ~ root, use directly.
         mu_out = mu_max;
-        result = Status::success;
+        result = RootStatus::Success;
     } else {
-        result = bisect(mu_out, [&res](const Real mu){
+        result = bisect_illinois<RootEval::Positive>(mu_out, [&res](const Real mu){
             return res.obj_fun(mu);
-        }, mu_min, mu_max, tol, max_iter);
+        }, mu_min, mu_max, tol, 0.0, max_iter);
     }
 
     // Return raw (unclamped) values so the caller can detect unphysical states
@@ -182,10 +182,10 @@ Status get_prims(Real& P, Real& rho, Real& lfac, Real& xi, Real& mu_max, Real& m
 
 template<typename Real>
 void output_result(Real& P, Real& rho, Real& lfac, Real& xi, Real& mu_max, Real& mu_out, const Real q, const Real D, const Real r_sq, const Real rb_sq, const Real b_sq, const Real Gam, const Real tol, int max_iter) {
-    Status result = get_prims(P, rho, lfac, xi, mu_max, mu_out, q, D, r_sq, rb_sq, b_sq, Gam, tol, max_iter);
-    if (result == Status::success) {
+    RootStatus result = get_prims(P, rho, lfac, xi, mu_max, mu_out, q, D, r_sq, rb_sq, b_sq, Gam, tol, max_iter);
+    if (result == RootStatus::Success) {
         std::cout << "Success: ";
-    } else if (result == Status::max_iter) {
+    } else if (result == RootStatus::MaxIter) {
         std::cout << "Max iterations reached: ";
     }
     std::cout << std::setprecision(15);

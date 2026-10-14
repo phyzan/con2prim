@@ -10,8 +10,9 @@ int main(int argc, char* argv[]) {
     double ss = 0.0;
     double sb2 = 0.0;
     double bb = 0.0;
+    double tol = 0.0;
 
-    // max_iter and tol are hardcoded for now, but could be made command line arguments if needed. h0 is also hardcoded to 1.
+    // max_iter is hardcoded for now, but could be made command line argument if needed. h0 is also hardcoded to 1.
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-d") == 0 && i + 1 < argc) {
             d = std::atof(argv[++i]);
@@ -23,6 +24,8 @@ int main(int argc, char* argv[]) {
             sb2 = std::atof(argv[++i]);
         } else if (strcmp(argv[i], "-bb") == 0 && i + 1 < argc) {
             bb = std::atof(argv[++i]);
+        } else if (strcmp(argv[i], "-tol") == 0 && i + 1 < argc) {
+            tol = std::atof(argv[++i]);
         }
     }
 
@@ -36,7 +39,6 @@ int main(int argc, char* argv[]) {
     std::cout << "================================" << std::endl;
 
     double P, rho, lfac, mu_max, mu_out, xi;
-    double tol = 0.;
 
 
     // rb2, bb, rr, q = SB2/D**3, BB/D, SS/D**2, tau/D
